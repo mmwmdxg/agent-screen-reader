@@ -15,15 +15,16 @@ function clamp(value, min, max) {
 function normalizeRegion(region) {
   if (region === undefined || region === null) return null;
   if (typeof region !== 'object') throw new Error('region 必须是对象或 null');
-  const x = Math.trunc(toNumber(region.x, -1));
-  const y = Math.trunc(toNumber(region.y, -1));
+  // x/y 可为负数：多显示器布局里副屏常位于主屏左侧（负 X）或上方（负 Y）
+  const x = Math.trunc(toNumber(region.x, 0));
+  const y = Math.trunc(toNumber(region.y, 0));
   const width = Math.trunc(toNumber(region.width, 0));
   const height = Math.trunc(toNumber(region.height, 0));
+  if (!Number.isFinite(x) || !Number.isFinite(y)) {
+    throw new Error('region.x 和 region.y 必须是整数（可为负数以指向副屏）');
+  }
   if (width <= 0 || height <= 0) {
     throw new Error('region.width 和 region.height 必须是正整数');
-  }
-  if (x < 0 || y < 0) {
-    throw new Error('region.x 和 region.y 必须是非负整数');
   }
   return { x, y, width, height };
 }
@@ -67,11 +68,12 @@ function normalizeFeedConfig(input = {}) {
   const normalizeCursor = (value, name) => {
     if (value === undefined || value === null || value === '') return null;
     if (typeof value !== 'number' || !Number.isFinite(value)) {
-      throw new Error(`feed.${name} 必须是非负整数或 null`);
+      throw new Error(`feed.${name} 必须是整数或 null（可为负数以指向副屏）`);
     }
     const n = Math.trunc(value);
-    if (n < 0 || n > 65535) {
-      throw new Error(`feed.${name} 必须在 0-65535 之间（屏幕坐标上限）`);
+    // 允许负坐标：多显示器副屏位于主屏左侧/上方时坐标为负；绝对上限放宽到虚拟桌面范围
+    if (n < -32768 || n > 32767) {
+      throw new Error(`feed.${name} 必须在 -32768 到 32767 之间`);
     }
     return n;
   };

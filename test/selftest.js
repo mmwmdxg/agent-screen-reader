@@ -39,10 +39,10 @@ async function main() {
   assert.strictEqual(c1.fps, 30, 'fps 应被钳制到 30');
   assert.strictEqual(c1.maxFrames, 5);
   assert.deepStrictEqual(c1.region, { x: 10, y: 20, width: 100, height: 80 });
-  assert.throws(() => normalizeConfig({ region: { x: -1, y: 0, width: 10, height: 10 } }));
+  assert.throws(() => normalizeConfig({ region: { x: 0, y: 0, width: -10, height: 10 } }), /width/);
   assert.throws(() => normalizeConfig({ fps: 0 }));
   assert.throws(() => normalizeConfig({ maxFrames: -1 }));
-  log('配置归一化', 'fps 钳制到 30、region 负数拒绝、fps=0 与 maxFrames 负数拒绝均生效');
+  log('配置归一化', 'fps 钳制到 30、region 宽高必须为正、fps=0 与 maxFrames 负数拒绝均生效');
 
   // 2. 插件注册与激活
   const h = makeHost();
@@ -222,14 +222,21 @@ async function main() {
     '正常关闭不应把 lastError 写成故障');
   log('总开关联动修复', 'setEnabled(false) 后 browsing 立即 false，lastError 未被污染');
 
-  // 19. 修复回归 P1-4：cursorX/Y 负数与非数字被拒绝
-  assert.throws(() => normalizeFeedConfig({ cursorX: -5 }), /cursorX/);
+  // 19. 修复回归 P1-4 + 多屏：cursorX/Y 支持副屏负坐标，非数字/超范围被拒绝
   assert.throws(() => normalizeFeedConfig({ cursorY: 99999999 }), /cursorY/);
   assert.throws(() => normalizeFeedConfig({ cursorX: 'abc' }), /cursorX/);
   const cursorOk = normalizeFeedConfig({ cursorX: 100, cursorY: 200 });
   assert.strictEqual(cursorOk.cursorX, 100);
   assert.strictEqual(cursorOk.cursorY, 200);
-  log('cursor 校验修复', '负数/超大/非数字坐标被拒绝，合法坐标 100/200 保留');
+  const cursorNeg = normalizeFeedConfig({ cursorX: -1707, cursorY: -300 });
+  assert.strictEqual(cursorNeg.cursorX, -1707, '副屏负 X 坐标应保留');
+  assert.strictEqual(cursorNeg.cursorY, -300, '副屏负 Y 坐标应保留');
+  log('cursor 校验与多屏', '非数字/超范围被拒绝，主屏正坐标 100/200 与副屏负坐标 -1707/-300 均保留');
+
+  // 19b. 多屏 region：normalizeRegion 允许负坐标（副屏在左侧）
+  const regNeg = normalizeConfig({ region: { x: -1707, y: 0, width: 1707, height: 1067 } });
+  assert.deepStrictEqual(regNeg.region, { x: -1707, y: 0, width: 1707, height: 1067 });
+  log('region 多屏负坐标', 'normalizeConfig 接受副屏负 X region {-1707,0,1707,1067}');
 
   // 20. 修复回归 P1-5：多会话索引文件隔离，seq 不互相覆盖
   const OUT_MULTI = path.join(OUT, 'feed-multi');

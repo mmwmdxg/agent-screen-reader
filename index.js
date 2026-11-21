@@ -1,8 +1,42 @@
 'use strict';
 
 const path = require('path');
+const { execFileSync } = require('child_process');
 const { PluginManager } = require('./src/plugins/PluginManager');
 const { createScreenReaderPlugin } = require('./src/plugins/ScreenReaderPlugin');
+
+// 探测"刷流屏"：默认取非主屏（副屏），避免打扰主屏上的工作。
+// 可用 SCREEN_READER_REGION='x,y,w,h' 与 SCREEN_READER_CURSOR='x,y' 显式覆盖。
+function detectFeedScreen() {
+  if (process.env.SCREEN_READER_REGION) {
+    const [x, y, width, height] = process.env.SCREEN_READER_REGION.split(',').map(Number);
+    if ([x, y, width, height].every(Number.isFinite) && width > 0 && height > 0) {
+      const cursor = process.env.SCREEN_READER_CURSOR
+        ? process.env.SCREEN_READER_CURSOR.split(',').map(Number)
+        : [x + Math.trunc(width / 2), y + Math.trunc(height / 2)];
+      return { region: { x, y, width, height }, cursorX: cursor[0], cursorY: cursor[1] };
+    }
+  }
+  try {
+    const ps = `
+Add-Type -AssemblyName System.Windows.Forms
+foreach ($s in [System.Windows.Forms.Screen]::AllScreens) {
+  if (-not $s.Primary) {
+    $b = $s.Bounds
+    Write-Output ("{0},{1},{2},{3}" -f $b.X,$b.Y,$b.Width,$b.Height)
+    break
+  }
+}`;
+    const out = execFileSync('powershell.exe',
+      ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', ps],
+      { encoding: 'utf8', timeout: 15000, windowsHide: true }).trim();
+    const [x, y, width, height] = out.split(',').map(Number);
+    if ([x, y, width, height].every(Number.isFinite) && width > 0 && height > 0) {
+      return { region: { x, y, width, height }, cursorX: x + Math.trunc(width / 2), cursorY: y + Math.trunc(height / 2) };
+    }
+  } catch (e) { /* 探测失败则回退到主屏全屏 */ }
+  return { region: null, cursorX: null, cursorY: null };
+}
 
 function createAgentPluginHost(options = {}) {
   const manager = new PluginManager({
@@ -23,8 +57,16 @@ function createAgentPluginHost(options = {}) {
 
 async function main() {
   const [command, ...args] = process.argv.slice(2);
-  const host = createAgentPluginHost();
+  const isFeed = command === 'feed' || command === 'feed-once';
+  const screen = isFeed ? detectFeedScreen() : { region: null, cursorX: null, cursorY: null };
+  const host = createAgentPluginHost(isFeed ? {
+    region: screen.region,
+    feedOptions: { cursorX: screen.cursorX, cursorY: screen.cursorY }
+  } : {});
   const api = host.api;
+  if (isFeed) {
+    console.error(`[screen-feed] 目标屏 region=${JSON.stringify(screen.region)} cursor=${screen.cursorX},${screen.cursorY}`);
+  }
 
   if (command === 'snapshot') {
     const meta = await api.snapshot();

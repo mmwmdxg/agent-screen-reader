@@ -2,8 +2,8 @@ param(
     [Parameter(Mandatory = $true)][string]$ResultPath,
     [ValidateSet('scroll','scrollup','pgdn','pgup','none')][string]$Action = 'scroll',
     [int]$Amount = 1,
-    [int]$X = -1,
-    [int]$Y = -1
+    [AllowNull()][Nullable[int]]$X = $null,
+    [AllowNull()][Nullable[int]]$Y = $null
 )
 
 $ErrorActionPreference = 'Stop'
@@ -15,9 +15,8 @@ if ($Amount -lt 1) { $Amount = 1 }
 if ($Amount -gt 20) { $Amount = 20 }
 
 $bounds = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
-$cursorExplicit = $false
-if ($X -ge 0 -and $Y -ge 0) { $cursorExplicit = $true }
-if (-not $cursorExplicit) {
+# X/Y 为 $null 才表示"未指定 → 用主屏中心"；显式负值表示副屏坐标，保留
+if ($null -eq $X -or $null -eq $Y) {
     $X = $bounds.X + [int]($bounds.Width / 2)
     $Y = $bounds.Y + [int]($bounds.Height / 2)
 }
