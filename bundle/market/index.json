@@ -49,8 +49,8 @@
         "zh": "实时刷流屏幕读取"
       },
       "description": {
-        "en": "Let the agent browse short-video and social feeds like a human: scroll, capture frames, and read them one by one.",
-        "zh": "让 agent 像人一样刷短视频和帖子信息流：滚动屏幕、抓帧、逐条读图理解内容。"
+        "en": "Let the agent browse short-video and social feeds like a human: scroll, capture 12 frames into a contact sheet, and read the whole clip at once.",
+        "zh": "让 agent 像人一样刷短视频和帖子信息流：滚动屏幕、每条连抓 12 帧拼图、一次读全视频内容。"
       },
       "author": "YG",
       "homepage": "https://github.com/mmwmdxg/agent-screen-reader",
@@ -63,17 +63,17 @@
         "keywords": ["screen", "feed", "douyin", "短视频", "刷流", "capture"],
         "labels": ["screen", "feed"],
         "sortKeys": {
-          "published": 1795255245
+          "published": 1795256402
         }
       },
       "versions": [
         {
-          "version": "1.1.0",
-          "publishTimestamp": 1795255245,
+          "version": "1.2.0",
+          "publishTimestamp": 1795256402,
           "source": {
             "type": "git",
             "url": "https://github.com/mmwmdxg/agent-screen-reader.git",
-            "commit": "c862f86bd0f974d917b9accfd5940b0eaf9122cf",
+            "commit": "4c6363f1ede4aa8265a8c6356868b75a550ae4e7",
             "path": "bundle"
           },
           "engines": {
