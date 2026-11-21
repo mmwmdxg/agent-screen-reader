@@ -1,0 +1,14 @@
+{
+  "name": "agent-screen-reader",
+  "version": "1.1.0",
+  "private": true,
+  "description": "让 agent 实时读取电脑屏幕、并自动刷短视频/帖子等 feed 内容的插件式功能模块",
+  "scripts": {
+    "snapshot": "node index.js snapshot",
+    "stream": "node index.js stream",
+    "feed": "node index.js feed",
+    "feed-once": "node index.js feed-once",
+    "status": "node index.js status",
+    "test": "node test/selftest.js"
+  }
+}

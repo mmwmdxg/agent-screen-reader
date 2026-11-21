@@ -1,0 +1,33 @@
+{
+  "name": "screen-reader",
+  "version": "1.1.0",
+  "displayName": "实时屏幕读取插件",
+  "description": "让 agent 定时抓取屏幕并读到图片与元数据，支持区域捕获、开关、帧率上限与插件式加载；新增实时刷流模式，可自动滚动/翻页逐条浏览短视频、帖子等 feed 内容并记录索引。",
+  "runtime": "node",
+  "entry": "src/plugins/ScreenReaderPlugin.js",
+  "capabilities": [
+    "screen.snapshot",
+    "screen.stream.start",
+    "screen.stream.stop",
+    "screen.status",
+    "screen.feed.start",
+    "screen.feed.once",
+    "screen.feed.stop",
+    "screen.feed.status"
+  ],
+  "config": {
+    "enabled": "布尔，总开关，默认 true",
+    "outputDir": "截图输出目录，默认 captures",
+    "fps": "每秒帧数，范围 0.1-30，默认 1",
+    "maxFrames": "最多抓取帧数，0 表示不限，上限 1000000",
+    "region": "可选，{x,y,width,height} 限制捕获区域",
+    "feedOptions": {
+      "action": "刷流动作：scroll(下滑)/scrollup(上滑)/pgdn(翻下页)/pgup(翻上页)/none，默认 scroll",
+      "intervalMs": "自动刷流间隔毫秒，钳制 100-60000，默认 1200",
+      "amount": "每次滚动的格数，1-20，默认 1",
+      "maxItems": "本次刷流最多条数，0 不限，默认 0",
+      "cursorX": "可选，滚动前鼠标定位的 X 坐标，默认屏幕中央",
+      "cursorY": "可选，滚动前鼠标定位的 Y 坐标，默认屏幕中央"
+    }
+  }
+}
