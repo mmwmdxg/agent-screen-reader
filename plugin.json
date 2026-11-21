@@ -1,6 +1,6 @@
 {
   "name": "screen-reader",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "displayName": "实时屏幕读取插件",
   "description": "让 agent 定时抓取屏幕并读到图片与元数据，支持区域捕获、开关、帧率上限与插件式加载；新增实时刷流模式，可自动滚动/翻页逐条浏览短视频、帖子等 feed 内容并记录索引。",
   "runtime": "node",

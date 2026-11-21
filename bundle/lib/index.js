@@ -46,15 +46,17 @@ $p = Get-Process | Where-Object { $_.MainWindowHandle -ne 0 -and $_.MainWindowTi
 if ($p) { [WinTop]::ShowWindow($p.MainWindowHandle, 3) | Out-Null; [WinTop]::SetForegroundWindow($p.MainWindowHandle) | Out-Null }
 \`\`\`
 
-## 刷一条（推荐：逐条看）
+## 刷一条（默认连抓 12 帧拼图）
 
 \`\`\`powershell
 cd "${dir}"
 node index.js feed-once
 \`\`\`
 
-返回一条 feed 条目 JSON：\`seq\` / \`action\` / \`path\`（PNG 路径）/ \`feedId\`。
-拿到 \`path\` 后，用图像读取工具（read_image）打开它，就能看到刚刷到的画面。读图 → 用中文说看到的内容 → 再刷下一条。
+返回一条 feed 条目 JSON：\`seq\` / \`action\` / \`path\`（**拼图 PNG**路径）/ \`feedId\` / \`mode\`=\`montage\` / \`frameCount\`=12 / \`frames\`（各单帧路径数组）。
+默认行为：**先滚动一条，再连抓 12 帧（每 400ms 一帧）拼成 4 列网格图**。这样一次读图就能看全这条视频的进程，而不是靠单帧猜。
+拿到 \`path\` 后，用图像读取工具（read_image）打开拼图，读出视频/图文讲了什么 → 用中文说看到的内容 → 再刷下一条。
+若只要单帧（快），传 \`montage:false\`（见 API）。
 
 ## 连续自动刷 N 秒
 
@@ -64,7 +66,7 @@ node index.js feed <秒数> [动作] [间隔毫秒]
 node index.js feed 30 scroll 2500
 \`\`\`
 
-动作可选 \`scroll\`（下滑）/ \`scrollup\` / \`pgdn\` / \`pgup\` / \`none\`。
+每条同样默认 12 帧拼图。动作可选 \`scroll\`（下滑）/ \`scrollup\` / \`pgdn\` / \`pgup\` / \`none\`。
 
 ## 结构化 API（在脚本里集成）
 
@@ -72,11 +74,18 @@ node index.js feed 30 scroll 2500
 const { createAgentPluginHost } = require('${dir.replace(/\\/g, '\\\\')}/index')
 const host = createAgentPluginHost({ outputDir: 'captures', feedOptions: { action: 'scroll', intervalMs: 1200 } })
 const api = host.api
-const item = await api.feedOnce()        // 先滚动再抓一帧
-api.feedStart({ maxItems: 10 })          // 自动刷 10 条
+const item = await api.feedOnce()        // 滚动 + 连抓 12 帧拼图
+const fast = await api.feedOnce({ montage: false })  // 只要单帧
+const custom = await api.feedOnce({ frames: 8, frameIntervalMs: 300, cols: 4 }) // 自定义拼图
+api.feedStart({ maxItems: 10 })          // 自动刷 10 条（每条拼图）
 const st = api.feedStatus()              // 已刷条数/会话/最近动作
 api.feedStop()                           // 停止
 \`\`\`
+
+## 刷哪块屏
+
+默认自动探测非主屏（副屏）作为刷流区域，不打扰主屏工作。可用环境变量覆盖：
+\`SCREEN_READER_REGION=x,y,w,h\` 与 \`SCREEN_READER_CURSOR=x,y\`（支持负坐标指向副屏）。
 
 ## 索引
 
@@ -92,9 +101,10 @@ node ${path.join(dir, 'test', 'selftest.js')}
 
 ## 使用要点
 
-- "刷"与"看"的区别：feed-once 先发滚动动作再抓帧，不是单纯定时抓屏
+- "刷"与"看"的区别：feed-once 先发滚动动作再连抓 12 帧拼图，不是单纯定时抓屏
 - 短视频是翻页式切换：一次滚轮换一条，抓帧时机在切换后
-- 单帧可能漏掉动态内容，重要内容可连抓 2-3 帧综合判断
+- **默认连抓 12 帧拼成 4 列网格**：一次读图看全视频进程，避免单帧只看到某一瞬间的局限；要更快可传 montage:false
+- 拼图每帧带 #序号，按序号读顺序；\`frames\` 数组保留原帧路径可放大细看
 - 刷手机 App 需另配 ADB，本 skill 走 Windows 桌面抓屏
 `
 }

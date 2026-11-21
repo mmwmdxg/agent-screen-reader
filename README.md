@@ -2,6 +2,8 @@
 
 让 agent 实时读取 Windows 电脑屏幕的功能模块，支持**插件模式**加载。核心能力：定时抓屏 → 生成 PNG → agent 通过图片读取工具拿到画面 → 通过元数据索引定位最新帧。
 
+**v1.2.0 新增「多帧拼图看全视频」**：刷流默认每条连抓 12 帧拼成网格图，一次读图看全视频进程，不再靠单帧猜；刷流默认自动使用副屏，不打扰主屏。
+
 **v1.1.0 新增「实时刷流」**：在"看屏幕"之上加了"刷屏幕"——自动滚动/翻页 → 抓帧 → 写 feed 索引，让 agent 像人刷 feed 一样逐条浏览短视频、帖子等内容流。
 
 ## 运行要求
@@ -44,7 +46,7 @@ node index.js snapshot
 # 实时流 3 秒（每秒 2 帧，手动停止）
 node index.js stream 3
 
-# 刷一次（先滚动一屏再抓一帧，适合 agent 逐条消费）
+# 刷一条（先滚动，再连抓 12 帧拼图，agent 一次读全）
 node index.js feed-once
 
 # 自动刷流 6 秒（默认每 1200ms 下滑一次并抓帧）
@@ -110,14 +112,15 @@ api.feedStop();                        // 停止自动刷流
 2. agent 用图像读取工具（如 `read_image`）打开该 PNG，即可看到屏幕画面。
 3. `captures/latest.json` 始终指向最近一帧，便于 agent 直接取最新画面。
 
-### v1.1 刷流模式：agent 如何"刷"内容流
+### 刷流模式：agent 如何"刷"内容流
 
-1. 调 `api.feedOnce()` 或 `api.feedStart()`：每次先发一次滚动/翻页动作，再抓一帧——这就是"刷"与"看"的区别。
-2. `captures/feed-index.json` 是指针文件，指向最近一次会话的索引文件名（`indexFile`）。每个会话有独立索引 `captures/feed-index-<sessionId>.json`，记录该会话的条目序列：每条含 `seq`（序号）、`action`（动作）、`capturedAt`、`path`（截图路径）、`feedId`。agent 按顺序读 `items[i].path` 即可逐条消费刷过的内容；多会话互不覆盖。`feedStatus().indexFile` 给出当前会话索引的完整路径。
-3. `feedStatus()` 给出 `items`（已刷条数）、`sessionId`、`browsing`、`lastError` 等状态。
+1. 调 `api.feedOnce()` 或 `api.feedStart()`：每次先发一次滚动/翻页动作，**再连抓 12 帧拼成一张网格图**（`mode:'montage'`, `frameCount:12`, `frames` 为各单帧路径，`path` 为拼图路径）——这就是"刷"与"看"的区别，也避免单帧只看到某一瞬间。要更快可传 `{montage:false}` 只抓一帧，或 `{frames:8,frameIntervalMs:300,cols:4}` 自定义。
+2. 刷流默认自动探测非主屏（副屏）作为抓屏与滚动区域，不打扰主屏；用 `SCREEN_READER_REGION=x,y,w,h` 与 `SCREEN_READER_CURSOR=x,y` 可覆盖（支持负坐标）。
+3. `captures/feed-index.json` 是指针文件，指向最近一次会话的索引文件名（`indexFile`）。每个会话有独立索引 `captures/feed-index-<sessionId>.json`，记录该会话的条目序列：每条含 `seq`（序号）、`action`（动作）、`capturedAt`、`path`（拼图路径）、`mode`、`frameCount`、`frames`、`feedId`。agent 按顺序读 `items[i].path`（拼图）即可逐条消费刷过的内容；多会话互不覆盖。`feedStatus().indexFile` 给出当前会话索引的完整路径。
+4. `feedStatus()` 给出 `items`（已刷条数）、`sessionId`、`browsing`、`lastError` 等状态。
 
 ## 验证状态
 
-`node test/selftest.js` 已在本机实跑通过（23 项全部 PASS），覆盖：配置归一化、插件注册激活、多宿主状态隔离、单帧真实抓屏（2560x1440 PNG）、区域抓屏（320x240）、最新帧索引、maxFrames 独立计数、定时流、错误路径安全、region 越界校验、总开关，以及 v1.1 的 feed 配置归一化、feedOnce 闭环、自动刷流计数与自动停止、feedStop 幂等与关闭态拒绝、scroll 动作，并含严格审查后的 7 项修复回归：停止竞态、总开关联动、cursor 坐标校验、会话索引隔离、回调异常隔离、翻页 amount、版本一致性。
+`node test/selftest.js` 已在本机实跑通过（25 项全部 PASS），覆盖：配置归一化、插件注册激活、多宿主状态隔离、单帧真实抓屏（2560x1440 PNG）、区域抓屏（320x240）、最新帧索引、maxFrames 独立计数、定时流、错误路径安全、region 越界校验、总开关，以及 feed 配置归一化、feedOnce 闭环、默认 12 帧多帧拼图、自动刷流计数与自动停止、feedStop 幂等与关闭态拒绝、scroll 动作；并含严格审查后的 7 项修复回归（停止竞态、总开关联动、cursor 坐标校验、会话索引隔离、回调异常隔离、翻页 amount、版本一致性）与多屏负坐标支持。
 
 CLI 闭环实测：`node index.js feed-once` 返回一条 feed 条目（scroll 动作 + 2560x1440 PNG），用图像读取工具打开该 PNG 成功看到真实桌面画面。

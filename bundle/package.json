@@ -1,6 +1,6 @@
 {
   "name": "@yg/screen-reader-feed",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "让 DSH agent 实时刷短视频、帖子等 feed：抓屏→滚动→逐条读图。安装后在会话里用 skill screen-feed 调用。",
   "type": "module",
   "main": "lib/index.js",

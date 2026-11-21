@@ -151,11 +151,11 @@ async function main() {
   // 13. feedOnce 动作→抓帧→索引闭环（先动后抓）
   const OUT_FEED = path.join(OUT, 'feed');
   const hFeed = makeHost({ outputDir: OUT_FEED });
-  const item1 = await hFeed.api.feedOnce({ action: 'none' });
+  const item1 = await hFeed.api.feedOnce({ action: 'none', montage: false });
   assert.strictEqual(item1.seq, 1);
   assert.strictEqual(item1.action, 'none');
   assert(item1.path && fs.existsSync(item1.path), 'feed 条目应有对应 PNG');
-  const item2 = await hFeed.api.feedOnce({ action: 'none' });
+  const item2 = await hFeed.api.feedOnce({ action: 'none', montage: false });
   assert.strictEqual(item2.seq, 2, '序号应递增');
   assert.strictEqual(item2.feedId, item1.feedId.replace(/-1$/, '-2'), 'feedId 应按序号递增');
   const pointer = JSON.parse(fs.readFileSync(path.join(OUT_FEED, 'feed-index.json'), 'utf8'));
@@ -165,10 +165,24 @@ async function main() {
   assert.deepStrictEqual(idx.items.map(i => i.seq), [1, 2]);
   log('feedOnce 闭环', `动作→抓帧→索引：2 条目序号递增、PNG 存在、feed-index.json 记录完整 (${path.basename(item2.path)})`);
 
+  // 13b. 默认拼图模式：12 帧拼一张图
+  const OUT_MONT = path.join(OUT, 'feed-montage');
+  const hMont = makeHost({ outputDir: OUT_MONT });
+  const mItem = await hMont.api.feedOnce({ action: 'none', frames: 3, frameIntervalMs: 60 });
+  assert.strictEqual(mItem.mode, 'montage', '默认应为拼图模式');
+  assert.strictEqual(mItem.frameCount, 3);
+  assert.strictEqual(mItem.frames.length, 3);
+  assert(fs.existsSync(mItem.path), '拼图文件应存在');
+  // 拼图 PNG 尺寸应明显大于单帧（宽度=4列×420）
+  const montBuf = fs.readFileSync(mItem.path);
+  assert(montBuf.length > 8 && montBuf.slice(1, 4).toString('ascii') === 'PNG');
+  log('多帧拼图模式', `默认 montage：3 帧拼 1 图，frameCount=${mItem.frameCount}，拼图 PNG ${montBuf.length}B`);
+
   // 14. 自动刷流 maxItems 独立计数 + 自动停止
   const OUT_AUTO = path.join(OUT, 'feed-auto');
   const hAuto = makeHost({ outputDir: OUT_AUTO });
-  const startedFeed = hAuto.api.feedStart({ action: 'none', intervalMs: 100, maxItems: 2 });
+  // 计数逻辑与拼图无关，用 montage:false 保持用例快速稳定
+  const startedFeed = hAuto.api.feedStart({ action: 'none', intervalMs: 100, maxItems: 2, montage: false });
   assert.strictEqual(startedFeed.started, true);
   await new Promise(r => setTimeout(r, 3000));
   const stFeed = hAuto.api.feedStatus();
@@ -189,7 +203,7 @@ async function main() {
   // 16. feed 动作真实执行（scroll 走 PowerShell，验证元数据由脚本生成）
   const OUT_SCROLL = path.join(OUT, 'feed-scroll');
   const hScroll = makeHost({ outputDir: OUT_SCROLL });
-  const scrollItem = await hScroll.api.feedOnce({ action: 'scroll', amount: 2, cursorX: 5, cursorY: 5 });
+  const scrollItem = await hScroll.api.feedOnce({ action: 'scroll', amount: 2, cursorX: 5, cursorY: 5, montage: false });
   assert.strictEqual(scrollItem.action, 'scroll');
   assert.strictEqual(scrollItem.amount, 2);
   assert(fs.existsSync(scrollItem.path), '滚动后应抓到帧');
@@ -250,8 +264,8 @@ async function main() {
   }
   const hM1 = makeHost({ outputDir: OUT_MULTI });
   const hM2 = makeHost({ outputDir: OUT_MULTI });
-  const m1 = await hM1.api.feedOnce({ action: 'none' });
-  const m2 = await hM2.api.feedOnce({ action: 'none' });
+  const m1 = await hM1.api.feedOnce({ action: 'none', montage: false });
+  const m2 = await hM2.api.feedOnce({ action: 'none', montage: false });
   assert.strictEqual(m1.seq, 1);
   assert.strictEqual(m2.seq, 1, '独立会话各自从 1 开始');
   // 按 sessionId 找两个索引文件，确认各自只有 1 条且互不覆盖
@@ -272,7 +286,7 @@ async function main() {
   managerCb.register(createScreenReaderPlugin());
   const apiCb = managerCb.get('screen-reader').activate();
   let cbItem = null;
-  try { cbItem = await apiCb.feedOnce({ action: 'none' }); }
+  try { cbItem = await apiCb.feedOnce({ action: 'none', montage: false }); }
   catch (e) { assert.fail(`回调异常不应穿透: ${e.message}`); }
   assert(cbItem && cbItem.seq === 1, '数据应正常落盘并返回');
   assert(/回调异常/.test(apiCb.feedStatus().lastError), '回调异常应记录到 lastError');
@@ -281,7 +295,7 @@ async function main() {
   // 22. 修复回归 P1-3：pgdn amount 生效（索引 detail 含 xN，脚本循环 N 次）
   const OUT_PG = path.join(OUT, 'feed-pgdn');
   const hPg = makeHost({ outputDir: OUT_PG });
-  const pgItem = await hPg.api.feedOnce({ action: 'pgdn', amount: 3 });
+  const pgItem = await hPg.api.feedOnce({ action: 'pgdn', amount: 3, montage: false });
   assert.strictEqual(pgItem.amount, 3);
   assert.strictEqual(pgItem.action, 'pgdn');
   log('翻页 amount 修复', 'pgdn amount=3 索引记录 3，脚本循环发送 3 次 PGDN');
@@ -289,7 +303,7 @@ async function main() {
   // 23. 修复回归 P1-7：package.json 版本与清单一致
   const pkg = JSON.parse(fs.readFileSync(path.resolve(__dirname, '..', 'package.json'), 'utf8'));
   const pluginManifest = JSON.parse(fs.readFileSync(path.resolve(__dirname, '..', 'plugin.json'), 'utf8'));
-  assert.strictEqual(pkg.version, '1.1.0');
+  assert.strictEqual(pkg.version, '1.2.0');
   assert.strictEqual(pkg.version, pluginManifest.version);
   log('版本一致性修复', `package.json 与 plugin.json 均为 ${pkg.version}`);
 

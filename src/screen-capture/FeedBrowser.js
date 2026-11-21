@@ -5,6 +5,7 @@ const path = require('path');
 const { EventEmitter } = require('events');
 const { execFile } = require('child_process');
 const { normalizeFeedConfig } = require('./config');
+const { captureMontage } = require('./FeedMontage');
 
 const SCROLL_SCRIPT = path.join(__dirname, 'scroll.ps1');
 
@@ -114,8 +115,26 @@ class FeedBrowser extends EventEmitter {
     }
     if (!actionMeta.ok) throw new Error(`输入动作失败: ${actionMeta.error || '未知错误'}`);
 
-    // 2) 抓一帧
-    const frame = await this.capture.captureOnce({ outputDir });
+    // 2) 抓帧：默认连抓 N 帧拼图，看全一条视频而非单帧
+    const useMontage = overrides.montage !== false;
+    let frame;
+    let montage = null;
+    if (useMontage) {
+      montage = await captureMontage(this.capture, {
+        frames: overrides.frames || 12,
+        intervalMs: overrides.frameIntervalMs || 400,
+        cols: overrides.cols || 4,
+        outputDir,
+        prefix: `feed-montage-${this._sessionId}-${this._items + 1}`
+      });
+      frame = {
+        path: montage.montage,
+        capturedAt: new Date().toISOString(),
+        width: 0, height: 0
+      };
+    } else {
+      frame = await this.capture.captureOnce({ outputDir });
+    }
 
     // 停止请求在进入收尾前出现：丢弃这条，不再落盘/递增/发事件（P1-1）
     if (this._stopRequested) {
@@ -130,9 +149,12 @@ class FeedBrowser extends EventEmitter {
       amount: cfg.amount,
       actionAt: actionMeta.at,
       capturedAt: frame.capturedAt,
-      path: frame.path,
+      path: frame.path,            // 拼图路径（读这个看全视频）
       width: frame.width,
       height: frame.height,
+      mode: useMontage ? 'montage' : 'single',
+      frameCount: montage ? montage.count : 1,
+      frames: montage ? montage.frames : [frame.path],
       feedId: `${this._sessionId}-${seq}`
     };
     this._items = seq;
@@ -156,6 +178,13 @@ class FeedBrowser extends EventEmitter {
     if (this._timer) return { started: false, reason: 'already-browsing' };
     const cfg = normalizeFeedConfig({ ...this.config, ...overrides });
     this.config = cfg;
+    // montage 选项不属于 feed config，单独保存供 timer 传给 feedOnce
+    this._montageOpts = {
+      montage: overrides.montage !== false,
+      frames: overrides.frames || 12,
+      frameIntervalMs: overrides.frameIntervalMs || 400,
+      cols: overrides.cols || 4
+    };
     this._sessionId = `feed-${stamp()}`;
     this._items = 0;
     this._lastError = null;
@@ -193,7 +222,7 @@ class FeedBrowser extends EventEmitter {
       }
       this._browsingInFlight = true;
       try {
-        await this.feedOnce();
+        await this.feedOnce(this._montageOpts || {});
       } catch (e) {
         this._lastError = e.message;
         if (this.listenerCount('error') > 0) this.emit('error', e);
