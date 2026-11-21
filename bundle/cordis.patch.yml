@@ -1,0 +1,3 @@
+- insert:
+    - id: screen-reader-feed
+      name: '@yg/screen-reader-feed'
