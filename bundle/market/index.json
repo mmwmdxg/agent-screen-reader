@@ -1,0 +1,86 @@
+{
+  "format": 1,
+  "title": {
+    "en": "YG Local Plugins",
+    "zh": "YG 本地插件"
+  },
+  "description": {
+    "en": "Locally built DSH plugins, including the screen feed reader.",
+    "zh": "本地自建的 DSH 插件，包含实时刷流屏幕读取插件。"
+  },
+  "metadata": {
+    "categories": {
+      "productivity": {
+        "title": {
+          "en": "Productivity",
+          "zh": "效率工具"
+        }
+      }
+    },
+    "labels": {
+      "screen": {
+        "title": {
+          "en": "Screen",
+          "zh": "屏幕"
+        }
+      },
+      "feed": {
+        "title": {
+          "en": "Feed browsing",
+          "zh": "信息流刷取"
+        }
+      }
+    },
+    "sortKeys": {
+      "published": {
+        "title": {
+          "en": "Published",
+          "zh": "发布时间"
+        },
+        "order": "desc"
+      }
+    }
+  },
+  "plugins": [
+    {
+      "name": "@yg/screen-reader-feed",
+      "title": {
+        "en": "Screen Feed Reader",
+        "zh": "实时刷流屏幕读取"
+      },
+      "description": {
+        "en": "Let the agent browse short-video and social feeds like a human: scroll, capture frames, and read them one by one.",
+        "zh": "让 agent 像人一样刷短视频和帖子信息流：滚动屏幕、抓帧、逐条读图理解内容。"
+      },
+      "author": "YG",
+      "homepage": "https://github.com/mmwmdxg/agent-screen-reader",
+      "repository": {
+        "url": "https://github.com/mmwmdxg/agent-screen-reader",
+        "directory": "bundle"
+      },
+      "metadata": {
+        "category": "productivity",
+        "keywords": ["screen", "feed", "douyin", "短视频", "刷流", "capture"],
+        "labels": ["screen", "feed"],
+        "sortKeys": {
+          "published": 1795255245
+        }
+      },
+      "versions": [
+        {
+          "version": "1.1.0",
+          "publishTimestamp": 1795255245,
+          "source": {
+            "type": "git",
+            "url": "https://github.com/mmwmdxg/agent-screen-reader.git",
+            "commit": "c862f86bd0f974d917b9accfd5940b0eaf9122cf",
+            "path": "bundle"
+          },
+          "engines": {
+            "dsh": ">=0.2.2-rc.5"
+          }
+        }
+      ]
+    }
+  ]
+}
